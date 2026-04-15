@@ -26,6 +26,25 @@ app.get('/config', (req, res) => {
   res.json({ token: AUTH_TOKEN });
 });
 
+// ── Login page check ──
+app.post('/login', (req, res) => {
+  const { password } = req.body;
+  if (password === AUTH_TOKEN) {
+    res.json({ ok: true, token: AUTH_TOKEN });
+  } else {
+    res.status(401).json({ error: 'Wrong password' });
+  }
+});
+
+// ── Protect dashboard ──
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // In-memory storage
 let laps = [];
 let currentSession = {

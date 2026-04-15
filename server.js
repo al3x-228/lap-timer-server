@@ -64,12 +64,12 @@ const TRACKS = {
   nurburgring: {
     name: "Nürburgring Nordschleife (Touristenfahrten)",
     type: "btg",
-    startLat: 50.343551,   // Antoniusweg bridge - BTG start
-    startLon: 6.900060,
-    finishLat: 50.351759,  // Tiergarten - BTG finish gantry
-    finishLon: 6.980749,
-    minLapSeconds: 360,    // 6 min minimum lap
-    triggerRadius: 30      // 30m crossing radius
+    startLat: 50.343571,   // Antoniusweg bridge - BTG start
+    startLon: 6.960072,
+    finishLat: 50.351758,  // Nürburgring Nordschleife finish
+    finishLon: 6.980766,
+    minLapSeconds: 360,
+    triggerRadius: 30
   }
 };
 

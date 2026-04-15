@@ -10,6 +10,22 @@ const wss = new WebSocket.Server({ server });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ── AUTH ──
+const AUTH_TOKEN = process.env.AUTH_TOKEN || 'changeme';
+
+function requireAuth(req, res, next) {
+  const token = req.headers['x-auth-token'] || req.query.token;
+  if (token !== AUTH_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// ── Serve token to dashboard securely ──
+app.get('/config', (req, res) => {
+  res.json({ token: AUTH_TOKEN });
+});
+
 // In-memory storage
 let laps = [];
 let currentSession = {
@@ -21,21 +37,19 @@ let currentSession = {
   currentLat: 0,
   currentLon: 0,
   maxSpeedThisLap: 0,
-  trackPoints: [], // live trace of current lap
-  finishLine: null  // {lat, lon} set by user or preset
+  trackPoints: [],
+  finishLine: null
 };
 
-// Nurburgring Nordschleife tourist section start/finish
 const TRACKS = {
   nurburgring: {
     name: "Nürburgring Nordschleife",
     lat: 50.3356,
     lon: 6.9475,
-    minLapSeconds: 300 // 5 min minimum lap
+    minLapSeconds: 300
   }
 };
 
-// Broadcast to all connected dashboard clients
 function broadcast(data) {
   const msg = JSON.stringify(data);
   wss.clients.forEach(client => {
@@ -45,7 +59,6 @@ function broadcast(data) {
   });
 }
 
-// Calculate distance between two GPS points in meters
 function gpsDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -56,44 +69,32 @@ function gpsDistance(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ── ESP32 sends GPS data here ──
-app.post('/gps', (req, res) => {
+// ── GPS endpoint (protected) ──
+app.post('/gps', requireAuth, (req, res) => {
   const { lat, lon, speed, satellites, hdop } = req.body;
-
   if (!lat || !lon) return res.status(400).json({ error: 'Missing lat/lon' });
 
   const now = Date.now();
-
-  // Update current position
   currentSession.currentLat = lat;
   currentSession.currentLon = lon;
   currentSession.currentSpeed = speed || 0;
 
-  // Track session start
   if (!currentSession.startTime) {
     currentSession.startTime = now;
     currentSession.lapStartTime = now;
   }
 
-  // Add point to current lap trace
   currentSession.trackPoints.push({ lat, lon, speed, time: now });
+  if (speed > currentSession.maxSpeedThisLap) currentSession.maxSpeedThisLap = speed;
 
-  // Update max speed this lap
-  if (speed > currentSession.maxSpeedThisLap) {
-    currentSession.maxSpeedThisLap = speed;
-  }
-
-  // Check finish line crossing
   if (currentSession.finishLine) {
     const dist = gpsDistance(lat, lon,
       currentSession.finishLine.lat,
       currentSession.finishLine.lon);
-
     const minLap = currentSession.finishLine.minLapSeconds || 60;
     const lapElapsed = (now - currentSession.lapStartTime) / 1000;
 
     if (dist < 20 && lapElapsed > minLap) {
-      // LAP COMPLETE
       const lapTime = now - currentSession.lapStartTime;
       currentSession.lapCount++;
 
@@ -108,17 +109,14 @@ app.post('/gps', (req, res) => {
 
       laps.push(lap);
 
-      // Update best lap
       if (!currentSession.bestLap || lapTime < currentSession.bestLap.time) {
         currentSession.bestLap = lap;
       }
 
-      // Reset for next lap
       currentSession.lapStartTime = now;
       currentSession.maxSpeedThisLap = 0;
       currentSession.trackPoints = [];
 
-      // Broadcast lap complete
       broadcast({
         type: 'LAP_COMPLETE',
         lap,
@@ -128,14 +126,11 @@ app.post('/gps', (req, res) => {
     }
   }
 
-  // Broadcast live position
   broadcast({
     type: 'POSITION',
-    lat,
-    lon,
+    lat, lon,
     speed: Math.round(speed || 0),
-    satellites,
-    hdop,
+    satellites, hdop,
     lapTime: currentSession.lapStartTime
       ? formatLapTime(now - currentSession.lapStartTime)
       : '00:00.000',
@@ -148,32 +143,24 @@ app.post('/gps', (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Set finish line ──
-app.post('/setfinish', (req, res) => {
+// ── Set finish line (protected) ──
+app.post('/setfinish', requireAuth, (req, res) => {
   const { lat, lon, track } = req.body;
-
   if (track && TRACKS[track]) {
     currentSession.finishLine = TRACKS[track];
     broadcast({ type: 'FINISH_SET', finishLine: TRACKS[track], trackName: TRACKS[track].name });
     return res.json({ ok: true, track: TRACKS[track].name });
   }
-
   if (lat && lon) {
     currentSession.finishLine = { lat, lon, minLapSeconds: 60 };
     broadcast({ type: 'FINISH_SET', finishLine: currentSession.finishLine, trackName: 'Custom' });
     return res.json({ ok: true, track: 'Custom' });
   }
-
   res.status(400).json({ error: 'Provide lat/lon or track name' });
 });
 
-// ── Get all laps ──
-app.get('/laps', (req, res) => {
-  res.json({ laps, bestLap: currentSession.bestLap, session: currentSession });
-});
-
-// ── Reset session ──
-app.post('/reset', (req, res) => {
+// ── Reset (protected) ──
+app.post('/reset', requireAuth, (req, res) => {
   laps = [];
   currentSession = {
     startTime: null,
@@ -185,13 +172,18 @@ app.post('/reset', (req, res) => {
     currentLon: 0,
     maxSpeedThisLap: 0,
     trackPoints: [],
-    finishLine: currentSession.finishLine // keep finish line
+    finishLine: currentSession.finishLine
   };
   broadcast({ type: 'RESET' });
   res.json({ ok: true });
 });
 
-// ── Get available tracks ──
+// ── Get laps ──
+app.get('/laps', (req, res) => {
+  res.json({ laps, bestLap: currentSession.bestLap });
+});
+
+// ── Get tracks ──
 app.get('/tracks', (req, res) => {
   res.json(TRACKS);
 });
@@ -203,10 +195,8 @@ function formatLapTime(ms) {
   return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}.${String(millis).padStart(3,'0')}`;
 }
 
-// WebSocket connection
 wss.on('connection', (ws) => {
   console.log('Dashboard connected');
-  // Send current state on connect
   ws.send(JSON.stringify({
     type: 'INIT',
     laps,

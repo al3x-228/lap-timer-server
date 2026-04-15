@@ -61,10 +61,14 @@ let currentSession = {
 
 const TRACKS = {
   nurburgring: {
-    name: "Nürburgring Nordschleife",
-    lat: 50.3356,
-    lon: 6.9475,
-    minLapSeconds: 300
+    name: "Nürburgring Nordschleife (BTG)",
+    type: "btg",                    // point-to-point, not closed loop
+    startLat: 50.3353,
+    startLon: 6.9475,
+    finishLat: 50.3714,
+    finishLon: 6.9389,
+    minLapSeconds: 360,             // 6 min minimum BTG lap
+    triggerRadius: 30               // 30m crossing radius
   }
 };
 

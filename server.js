@@ -8,8 +8,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
+app.use('/static', express.static(path.join(__dirname, 'public')));
 // ── AUTH ──
 const AUTH_TOKEN = process.env.AUTH_TOKEN || 'changeme';
 

@@ -64,12 +64,12 @@ const TRACKS = {
   nurburgring: {
     name: "Nürburgring Nordschleife (Touristenfahrten)",
     type: "btg",
-    startLat: 50.3780,   // Döttinger Höhe entry arc
-    startLon: 6.9310,
-    finishLat: 50.3756,  // Tiergarten/Galgenkopf finish gantry
-    finishLon: 6.9339,
-    minLapSeconds: 360,
-    triggerRadius: 30
+    startLat: 50.343551,   // Antoniusweg bridge - BTG start
+    startLon: 6.900060,
+    finishLat: 50.351759,  // Tiergarten - BTG finish gantry
+    finishLon: 6.980749,
+    minLapSeconds: 360,    // 6 min minimum lap
+    triggerRadius: 30      // 30m crossing radius
   }
 };
 

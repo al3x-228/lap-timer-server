@@ -62,14 +62,14 @@ let currentSession = {
 
 const TRACKS = {
   nurburgring: {
-    name: "Nürburgring Nordschleife (BTG)",
-    type: "btg",                    // point-to-point, not closed loop
-    startLat: 50.3353,
-    startLon: 6.9475,
-    finishLat: 50.3714,
-    finishLon: 6.9389,
-    minLapSeconds: 360,             // 6 min minimum BTG lap
-    triggerRadius: 30               // 30m crossing radius
+    name: "Nürburgring Nordschleife (Touristenfahrten)",
+    type: "btg",
+    startLat: 50.3780,   // Döttinger Höhe entry arc
+    startLon: 6.9310,
+    finishLat: 50.3756,  // Tiergarten/Galgenkopf finish gantry
+    finishLon: 6.9339,
+    minLapSeconds: 360,
+    triggerRadius: 30
   }
 };
 

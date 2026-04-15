@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAP TIMER — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Rajdhani', sans-serif;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-box {
+    width: 340px;
+    border: 1px solid #1a1a2e;
+    padding: 40px;
+    background: #0f0f1a;
+  }
+
+  .logo {
+    font-size: 1.2em;
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: #e8ff00;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-size: 0.7em;
+    letter-spacing: 3px;
+    color: #555570;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .field-label {
+    font-size: 0.65em;
+    letter-spacing: 3px;
+    color: #555570;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px 14px;
+    background: #080810;
+    border: 1px solid #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1em;
+    outline: none;
+    margin-bottom: 20px;
+    transition: border-color 0.2s;
+  }
+
+  input:focus { border-color: #e8ff00; }
+
+  .login-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid #e8ff00;
+    color: #e8ff00;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.9em;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .login-btn:hover {
+    background: #e8ff00;
+    color: #0a0a0f;
+  }
+
+  .error {
+    font-size: 0.75em;
+    color: #ff3030;
+    letter-spacing: 2px;
+    margin-top: 12px;
+    text-align: center;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div class="login-box">
+  <div class="logo">Lap Timer</div>
+  <div class="subtitle">Race Session Dashboard</div>
+  <div class="field-label">Password</div>
+  <input type="password" id="password" placeholder="Enter password"
+    onkeydown="if(event.key==='Enter') login()">
+  <button class="login-btn" onclick="login()">Enter</button>
+  <div class="error" id="error">Wrong password</div>
+</div>
+
+<script>
+async function login() {
+  const password = document.getElementById('password').value;
+  if (!password) return;
+
+  const r = await fetch('/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  });
+
+  const data = await r.json();
+
+  if (data.ok) {
+    // Store token in sessionStorage
+    sessionStorage.setItem('lapTimerToken', data.token);
+    window.location.href = '/dashboard';
+  } else {
+    document.getElementById('error').style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>

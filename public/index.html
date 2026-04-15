@@ -470,9 +470,11 @@ const WS_URL = SERVER_URL.replace('https://', 'wss://').replace('http://', 'ws:/
 let authToken = '';
 
 async function loadConfig() {
-  const r = await fetch('/config');
-  const data = await r.json();
-  authToken = data.token;
+  authToken = sessionStorage.getItem('lapTimerToken');
+  if (!authToken) {
+    window.location.href = '/'; // redirect to login if no token
+    return;
+  }
 }
 
 // ── MAP ──

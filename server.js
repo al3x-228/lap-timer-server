@@ -49,6 +49,7 @@ let laps = [];
 let currentSession = {
   startTime: null,
   lapStartTime: null,
+  lapActive: false,
   bestLap: null,
   lapCount: 0,
   currentSpeed: 0,

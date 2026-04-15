@@ -599,9 +599,14 @@ function handleMessage(data) {
       break;
 
     case 'FINISH_SET':
-      placeFinishMarker(data.finishLine.lat, data.finishLine.lon);
-      hideSetup();
-      break;
+  if (data.finishLine.type === 'btg') {
+    placeStartMarker(data.finishLine.startLat, data.finishLine.startLon);
+    placeFinishMarker(data.finishLine.finishLat, data.finishLine.finishLon);
+  } else {
+    placeFinishMarker(data.finishLine.lat, data.finishLine.lon);
+  }
+  hideSetup();
+  break;
 
     case 'RESET':
       laps = [];
@@ -639,8 +644,24 @@ function placeFinishMarker(lat, lon) {
     iconSize: [16, 16],
     iconAnchor: [8, 8]
   });
-  finishMarker = L.marker([lat, lon], { icon }).addTo(map);
-  map.setView([lat, lon], 16);
+  finishMarker = L.marker([lat, lon], { icon }).addTo(map)
+    .bindTooltip('FINISH', { permanent: true, direction: 'top' });
+}
+  
+function placeStartMarker(lat, lon) {
+  const icon = L.divIcon({
+    html: `<div style="
+      width:16px;height:16px;
+      background:#00ff88;
+      border:2px solid white;
+      transform:rotate(45deg)
+    "></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
+  L.marker([lat, lon], { icon }).addTo(map)
+    .bindTooltip('START', { permanent: true, direction: 'top' });
+  map.setView([lat, lon], 15);
 }
 
 // ── LAP LIST ──

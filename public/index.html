@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAP TIMER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --panel: #0f0f1a;
+    --border: #1a1a2e;
+    --accent: #e8ff00;
+    --red: #ff3030;
+    --blue: #00aaff;
+    --text: #e0e0e0;
+    --muted: #555570;
+    --font-display: 'Rajdhani', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    grid-template-columns: 1fr 320px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    gap: 20px;
+  }
+
+  .logo {
+    font-size: 1.1em;
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .header-divider { width: 1px; height: 24px; background: var(--border); }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .status-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .status-dot.active { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .status-label { font-size: 0.75em; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 0.8em;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.accent { border-color: var(--accent); color: var(--accent); }
+  .btn.danger:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── MAP ── */
+  #map {
+    background: #080810;
+    position: relative;
+  }
+
+  .leaflet-tile-pane { filter: brightness(0.7) saturate(0.4); }
+
+  /* ── RIGHT PANEL ── */
+  .panel {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── LIVE METRICS ── */
+  .metrics {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .metric-label {
+    font-size: 0.65em;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .metric-value {
+    font-family: var(--font-mono);
+    font-size: 1.6em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .metric-value.accent { color: var(--accent); }
+  .metric-value.blue { color: var(--blue); }
+  .metric-value.large {
+    font-size: 2.4em;
+    grid-column: 1 / -1;
+  }
+
+  .metric.full { grid-column: 1 / -1; }
+
+  /* lap timer big display */
+  .lap-timer-display {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    background: linear-gradient(180deg, #0f0f1a 0%, #080810 100%);
+  }
+
+  .lap-timer-label {
+    font-size: 0.65em;
+    letter-spacing: 4px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .lap-timer-value {
+    font-family: var(--font-mono);
+    font-size: 2.8em;
+    color: var(--accent);
+    letter-spacing: 2px;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(232,255,0,0.3);
+  }
+
+  .best-lap-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .best-lap-label {
+    font-size: 0.65em;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .best-lap-value {
+    font-family: var(--font-mono);
+    font-size: 1em;
+    color: var(--blue);
+  }
+
+  /* ── LAP LIST ── */
+  .lap-list-header {
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lap-list-title {
+    font-size: 0.7em;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .lap-count {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: var(--accent);
+  }
+
+  .lap-list {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .lap-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .lap-item:hover { background: rgba(255,255,255,0.03); }
+  .lap-item.best { background: rgba(232,255,0,0.05); }
+  .lap-item.best .lap-time { color: var(--accent); }
+
+  .lap-num {
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .lap-time {
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+    color: var(--text);
+  }
+
+  .lap-speed {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ── FINISH LINE SETUP ── */
+  .setup-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 16px;
+    z-index: 1000;
+    min-width: 280px;
+  }
+
+  .setup-title {
+    font-size: 0.7em;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .setup-options { display: flex; flex-direction: column; gap: 8px; }
+
+  .setup-btn {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 0.85em;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .setup-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .setup-btn .track-flag { font-size: 1.2em; }
+
+  .setup-instructions {
+    margin-top: 10px;
+    font-size: 0.75em;
+    color: var(--muted);
+    line-height: 1.5;
+    display: none;
+  }
+  .setup-instructions.visible { display: block; }
+
+  /* ── LAP NOTIFICATION ── */
+  .lap-notification {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    padding: 16px 32px;
+    z-index: 2000;
+    text-align: center;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 40px rgba(232,255,0,0.2);
+    min-width: 300px;
+  }
+
+  .lap-notification.show { transform: translateX(-50%) translateY(0); }
+
+  .notif-lap-num {
+    font-size: 0.65em;
+    letter-spacing: 4px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .notif-lap-time {
+    font-family: var(--font-mono);
+    font-size: 2em;
+    color: var(--accent);
+    line-height: 1.2;
+  }
+
+  .notif-vs-best {
+    font-size: 0.8em;
+    margin-top: 4px;
+  }
+
+  .notif-faster { color: #00ff88; }
+  .notif-slower { color: var(--red); }
+
+  /* ── FINISH LINE MARKER ── */
+  .finish-marker {
+    width: 20px; height: 20px;
+    background: var(--accent);
+    border: 2px solid white;
+    transform: rotate(45deg);
+  }
+
+  /* ── NO SIGNAL ── */
+  .no-signal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 500;
+    pointer-events: none;
+  }
+
+  .no-signal-text {
+    font-size: 0.7em;
+    letter-spacing: 4px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* Leaflet overrides */
+  .leaflet-control-attribution { display: none; }
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Lap Timer</div>
+  <div class="header-divider"></div>
+  <div class="status-dot" id="statusDot"></div>
+  <div class="status-label" id="statusLabel">Disconnected</div>
+  <div class="header-divider"></div>
+  <div class="status-dot" id="gpsDot"></div>
+  <div class="status-label" id="gpsLabel">No GPS</div>
+  <div class="header-right">
+    <button class="btn accent" onclick="showSetup()">Set Finish Line</button>
+    <button class="btn danger" onclick="resetSession()">Reset</button>
+  </div>
+</header>
+
+<div id="map">
+  <div class="no-signal" id="noSignal">
+    <div class="no-signal-text">Waiting for GPS signal...</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="lap-timer-display">
+    <div class="lap-timer-label">Current Lap</div>
+    <div class="lap-timer-value" id="lapTimer">00:00.000</div>
+    <div class="best-lap-row">
+      <div class="best-lap-label">Best Lap</div>
+      <div class="best-lap-value" id="bestLap">--:--.---</div>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Speed</div>
+      <div class="metric-value accent" id="speed">0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">km/h</div>
+      <div class="metric-value accent" id="speedUnit" style="font-size:0.8em;padding-top:8px;color:var(--muted)">km/h</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Satellites</div>
+      <div class="metric-value blue" id="satellites">0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">HDOP</div>
+      <div class="metric-value" id="hdop">--</div>
+    </div>
+  </div>
+
+  <div class="lap-list-header">
+    <div class="lap-list-title">Lap History</div>
+    <div class="lap-count" id="lapCount">0 laps</div>
+  </div>
+
+  <div class="lap-list" id="lapList">
+  </div>
+</div>
+
+<!-- Finish line setup panel -->
+<div class="setup-panel" id="setupPanel" style="display:none">
+  <div class="setup-title">Choose Start / Finish Line</div>
+  <div class="setup-options">
+    <button class="setup-btn" onclick="setTrack('nurburgring')">
+      <span class="track-flag">🇩🇪</span>
+      Nürburgring Nordschleife
+    </button>
+    <button class="setup-btn" onclick="startMapClick()">
+      <span class="track-flag">📍</span>
+      Tap on map to set custom point
+    </button>
+  </div>
+  <div class="setup-instructions" id="setupInstructions">
+    Click anywhere on the map to place the start/finish line
+  </div>
+  <button class="btn" style="margin-top:12px;width:100%" onclick="hideSetup()">Cancel</button>
+</div>
+
+<!-- Lap notification -->
+<div class="lap-notification" id="lapNotification">
+  <div class="notif-lap-num" id="notifLapNum">LAP 1</div>
+  <div class="notif-lap-time" id="notifLapTime">00:00.000</div>
+  <div class="notif-vs-best" id="notifVsBest"></div>
+</div>
+
+<script>
+// ── SERVER URL ──
+// Will be replaced with your Render URL
+const SERVER_URL = window.location.origin;
+const WS_URL = SERVER_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+
+// ── MAP ──
+const map = L.map('map', {
+  center: [50.3356, 6.9475],
+  zoom: 14,
+  zoomControl: true
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19
+}).addTo(map);
+
+// Live position marker
+const carIcon = L.divIcon({
+  html: `<div style="
+    width:14px;height:14px;
+    background:#e8ff00;
+    border:2px solid white;
+    border-radius:50%;
+    box-shadow:0 0 10px rgba(232,255,0,0.8)
+  "></div>`,
+  iconSize: [14, 14],
+  iconAnchor: [7, 7]
+});
+
+let carMarker = null;
+let finishMarker = null;
+let lapPolyline = null;
+let allPolylines = [];
+let currentPoints = [];
+let hasGPS = false;
+
+// ── WEBSOCKET ──
+let ws = null;
+let lapTimerInterval = null;
+let lapStartMs = null;
+let prevBestLapMs = null;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    document.getElementById('statusDot').className = 'status-dot connected';
+    document.getElementById('statusLabel').textContent = 'Connected';
+  };
+
+  ws.onclose = () => {
+    document.getElementById('statusDot').className = 'status-dot';
+    document.getElementById('statusLabel').textContent = 'Disconnected';
+    setTimeout(connect, 3000); // auto reconnect
+  };
+
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    handleMessage(data);
+  };
+}
+
+function handleMessage(data) {
+  switch(data.type) {
+
+    case 'INIT':
+      // Restore state
+      if (data.laps) data.laps.forEach(lap => addLapToList(lap, data.bestLap));
+      if (data.bestLap) document.getElementById('bestLap').textContent = data.bestLap.timeFormatted;
+      if (data.lapCount) document.getElementById('lapCount').textContent = data.lapCount + ' laps';
+      if (data.finishLine) placeFinishMarker(data.finishLine.lat, data.finishLine.lon);
+      if (data.currentLat && data.currentLon) {
+        updateCarPosition(data.currentLat, data.currentLon);
+      }
+      break;
+
+    case 'POSITION':
+      hasGPS = true;
+      document.getElementById('noSignal').style.display = 'none';
+      document.getElementById('gpsDot').className = 'status-dot active';
+      document.getElementById('gpsLabel').textContent = 'GPS Active';
+
+      updateCarPosition(data.lat, data.lon);
+      document.getElementById('speed').textContent = data.speed;
+      document.getElementById('satellites').textContent = data.satellites || '--';
+      document.getElementById('hdop').textContent = data.hdop ? data.hdop.toFixed(1) : '--';
+      document.getElementById('lapTimer').textContent = data.lapTime;
+      document.getElementById('bestLap').textContent = data.bestLap;
+
+      // Add to current lap trace
+      currentPoints.push([data.lat, data.lon]);
+      if (lapPolyline) {
+        lapPolyline.setLatLngs(currentPoints);
+      } else {
+        lapPolyline = L.polyline(currentPoints, {
+          color: '#e8ff00',
+          weight: 2,
+          opacity: 0.8
+        }).addTo(map);
+      }
+      break;
+
+    case 'LAP_COMPLETE':
+      // Archive current polyline
+      if (lapPolyline) {
+        lapPolyline.setStyle({ color: '#334', weight: 1, opacity: 0.5 });
+        allPolylines.push(lapPolyline);
+        lapPolyline = null;
+        currentPoints = [];
+      }
+
+      addLapToList(data.lap, data.bestLap);
+      showLapNotification(data.lap, data.bestLap);
+
+      document.getElementById('lapCount').textContent = data.totalLaps + ' laps';
+      if (data.bestLap) document.getElementById('bestLap').textContent = data.bestLap.timeFormatted;
+
+      // Browser push notification
+      if (Notification.permission === 'granted') {
+        new Notification('Lap Complete!', {
+          body: `Lap ${data.lap.number}: ${data.lap.timeFormatted} | Max: ${data.lap.maxSpeed} km/h`,
+          icon: '/favicon.ico'
+        });
+      }
+      break;
+
+    case 'FINISH_SET':
+      placeFinishMarker(data.finishLine.lat, data.finishLine.lon);
+      hideSetup();
+      break;
+
+    case 'RESET':
+      laps = [];
+      document.getElementById('lapList').innerHTML = '';
+      document.getElementById('lapCount').textContent = '0 laps';
+      document.getElementById('lapTimer').textContent = '00:00.000';
+      document.getElementById('bestLap').textContent = '--:--.---';
+      document.getElementById('speed').textContent = '0';
+      currentPoints = [];
+      if (lapPolyline) { map.removeLayer(lapPolyline); lapPolyline = null; }
+      allPolylines.forEach(p => map.removeLayer(p));
+      allPolylines = [];
+      break;
+  }
+}
+
+function updateCarPosition(lat, lon) {
+  if (!carMarker) {
+    carMarker = L.marker([lat, lon], { icon: carIcon }).addTo(map);
+    map.setView([lat, lon], 16);
+  } else {
+    carMarker.setLatLng([lat, lon]);
+  }
+}
+
+function placeFinishMarker(lat, lon) {
+  if (finishMarker) map.removeLayer(finishMarker);
+  const icon = L.divIcon({
+    html: `<div style="
+      width:16px;height:16px;
+      background:#e8ff00;
+      border:2px solid white;
+      transform:rotate(45deg)
+    "></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
+  finishMarker = L.marker([lat, lon], { icon }).addTo(map);
+  map.setView([lat, lon], 16);
+}
+
+// ── LAP LIST ──
+function addLapToList(lap, bestLap) {
+  const list = document.getElementById('lapList');
+  const isBest = bestLap && lap.number === bestLap.number;
+
+  const item = document.createElement('div');
+  item.className = 'lap-item' + (isBest ? ' best' : '');
+  item.innerHTML = `
+    <div class="lap-num">${lap.number}</div>
+    <div class="lap-time">${lap.timeFormatted}</div>
+    <div class="lap-speed">${lap.maxSpeed} km/h</div>
+  `;
+
+  // Click to show lap trace
+  item.addEventListener('click', () => {
+    if (lap.points && lap.points.length > 0) {
+      const coords = lap.points.map(p => [p.lat, p.lon]);
+      const highlight = L.polyline(coords, { color: '#e8ff00', weight: 3 }).addTo(map);
+      map.fitBounds(highlight.getBounds(), { padding: [20, 20] });
+      setTimeout(() => map.removeLayer(highlight), 5000);
+    }
+  });
+
+  list.insertBefore(item, list.firstChild);
+}
+
+// ── LAP NOTIFICATION ──
+let notifTimeout = null;
+
+function showLapNotification(lap, bestLap) {
+  const notif = document.getElementById('lapNotification');
+  document.getElementById('notifLapNum').textContent = `LAP ${lap.number}`;
+  document.getElementById('notifLapTime').textContent = lap.timeFormatted;
+
+  const vsBest = document.getElementById('notifVsBest');
+  if (prevBestLapMs && lap.time < prevBestLapMs) {
+    const diff = ((prevBestLapMs - lap.time) / 1000).toFixed(3);
+    vsBest.className = 'notif-vs-best notif-faster';
+    vsBest.textContent = `▲ ${diff}s faster — NEW BEST!`;
+  } else if (prevBestLapMs) {
+    const diff = ((lap.time - prevBestLapMs) / 1000).toFixed(3);
+    vsBest.className = 'notif-vs-best notif-slower';
+    vsBest.textContent = `▼ +${diff}s`;
+  } else {
+    vsBest.textContent = 'First lap';
+  }
+
+  prevBestLapMs = bestLap ? bestLap.time : lap.time;
+
+  notif.classList.add('show');
+  clearTimeout(notifTimeout);
+  notifTimeout = setTimeout(() => notif.classList.remove('show'), 4000);
+}
+
+// ── SETUP PANEL ──
+function showSetup() {
+  document.getElementById('setupPanel').style.display = 'block';
+  requestNotificationPermission();
+}
+
+function hideSetup() {
+  document.getElementById('setupPanel').style.display = 'none';
+  document.getElementById('setupInstructions').classList.remove('visible');
+  map.off('click', onMapClick);
+}
+
+function setTrack(trackName) {
+  fetch(SERVER_URL + '/setfinish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ track: trackName })
+  });
+  hideSetup();
+}
+
+let mapClickMode = false;
+
+function startMapClick() {
+  document.getElementById('setupInstructions').classList.add('visible');
+  mapClickMode = true;
+  map.on('click', onMapClick);
+}
+
+function onMapClick(e) {
+  if (!mapClickMode) return;
+  fetch(SERVER_URL + '/setfinish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat: e.latlng.lat, lon: e.latlng.lng })
+  });
+  mapClickMode = false;
+  map.off('click', onMapClick);
+  hideSetup();
+}
+
+// ── RESET ──
+function resetSession() {
+  if (confirm('Reset session? All lap data will be lost.')) {
+    fetch(SERVER_URL + '/reset', { method: 'POST' });
+  }
+}
+
+// ── PUSH NOTIFICATIONS ──
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+// ── START ──
+connect();
+requestNotificationPermission();
+</script>
+</body>
+</html>

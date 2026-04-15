@@ -467,6 +467,13 @@
 // Will be replaced with your Render URL
 const SERVER_URL = window.location.origin;
 const WS_URL = SERVER_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+let authToken = '';
+
+async function loadConfig() {
+  const r = await fetch('/config');
+  const data = await r.json();
+  authToken = data.token;
+}
 
 // ── MAP ──
 const map = L.map('map', {
@@ -702,10 +709,13 @@ function hideSetup() {
 
 function setTrack(trackName) {
   fetch(SERVER_URL + '/setfinish', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ track: trackName })
-  });
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-auth-token': authToken
+  },
+  body: JSON.stringify({ track: trackName })
+});
   hideSetup();
 }
 
@@ -721,7 +731,10 @@ function onMapClick(e) {
   if (!mapClickMode) return;
   fetch(SERVER_URL + '/setfinish', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+  'Content-Type': 'application/json',
+  'x-auth-token': authToken
+},
     body: JSON.stringify({ lat: e.latlng.lat, lon: e.latlng.lng })
   });
   mapClickMode = false;
@@ -732,7 +745,13 @@ function onMapClick(e) {
 // ── RESET ──
 function resetSession() {
   if (confirm('Reset session? All lap data will be lost.')) {
-    fetch(SERVER_URL + '/reset', { method: 'POST' });
+    fetch(SERVER_URL + '/reset', { 
+      method: 'POST',
+    headers: {
+    'Content-Type': 'application/json',
+    'x-auth-token': authToken
+  }
+    });
   }
 }
 
@@ -744,8 +763,10 @@ function requestNotificationPermission() {
 }
 
 // ── START ──
-connect();
-requestNotificationPermission();
+loadConfig().then(() => {
+  connect();
+  requestNotificationPermission();
+});
 </script>
 </body>
 </html>

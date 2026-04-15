@@ -101,22 +101,30 @@ app.post('/gps', requireAuth, (req, res) => {
   currentSession.currentLon = lon;
   currentSession.currentSpeed = speed || 0;
 
-  if (!currentSession.startTime) {
-    currentSession.startTime = now;
-    currentSession.lapStartTime = now;
-  }
+  // Check lap detection
+if (currentSession.finishLine) {
+  const fl = currentSession.finishLine;
+  const lapElapsed = (now - currentSession.lapStartTime) / 1000;
+  const minLap = fl.minLapSeconds || 60;
 
-  currentSession.trackPoints.push({ lat, lon, speed, time: now });
-  if (speed > currentSession.maxSpeedThisLap) currentSession.maxSpeedThisLap = speed;
+  if (fl.type === 'btg') {
+    // BTG: separate start and finish points
+    const distToStart = gpsDistance(lat, lon, fl.startLat, fl.startLon);
+    const distToFinish = gpsDistance(lat, lon, fl.finishLat, fl.finishLon);
+    const radius = fl.triggerRadius || 30;
 
-  if (currentSession.finishLine) {
-    const dist = gpsDistance(lat, lon,
-      currentSession.finishLine.lat,
-      currentSession.finishLine.lon);
-    const minLap = currentSession.finishLine.minLapSeconds || 60;
-    const lapElapsed = (now - currentSession.lapStartTime) / 1000;
+    // Start timing when crossing start point
+    if (distToStart < radius && !currentSession.lapActive) {
+      currentSession.lapActive = true;
+      currentSession.lapStartTime = now;
+      currentSession.trackPoints = [];
+      currentSession.maxSpeedThisLap = 0;
+      broadcast({ type: 'LAP_STARTED' });
+    }
 
-    if (dist < 20 && lapElapsed > minLap) {
+    // Stop timing when crossing finish point
+    if (distToFinish < radius && currentSession.lapActive && lapElapsed > minLap) {
+      currentSession.lapActive = false;
       const lapTime = now - currentSession.lapStartTime;
       currentSession.lapCount++;
 
@@ -130,7 +138,35 @@ app.post('/gps', requireAuth, (req, res) => {
       };
 
       laps.push(lap);
+      if (!currentSession.bestLap || lapTime < currentSession.bestLap.time) {
+        currentSession.bestLap = lap;
+      }
 
+      broadcast({
+        type: 'LAP_COMPLETE',
+        lap,
+        bestLap: currentSession.bestLap,
+        totalLaps: currentSession.lapCount
+      });
+    }
+
+  } else {
+    // Standard closed circuit
+    const dist = gpsDistance(lat, lon, fl.lat, fl.lon);
+    if (dist < (fl.triggerRadius || 20) && lapElapsed > minLap) {
+      const lapTime = now - currentSession.lapStartTime;
+      currentSession.lapCount++;
+
+      const lap = {
+        number: currentSession.lapCount,
+        time: lapTime,
+        timeFormatted: formatLapTime(lapTime),
+        maxSpeed: Math.round(currentSession.maxSpeedThisLap),
+        points: [...currentSession.trackPoints],
+        timestamp: now
+      };
+
+      laps.push(lap);
       if (!currentSession.bestLap || lapTime < currentSession.bestLap.time) {
         currentSession.bestLap = lap;
       }
@@ -147,6 +183,7 @@ app.post('/gps', requireAuth, (req, res) => {
       });
     }
   }
+}
 
   broadcast({
     type: 'POSITION',
